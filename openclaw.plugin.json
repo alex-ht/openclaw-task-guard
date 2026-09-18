@@ -1,0 +1,34 @@
+{
+  "id": "task-guard",
+  "name": "Task Guard",
+  "description": "Session task list that keeps agents from stopping before deliverable content and format are done.",
+  "version": "1.0.0",
+  "categories": ["developer-tools"],
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": ["task_plan", "task_mark"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enforcement": {
+        "type": "string",
+        "enum": ["off", "remind", "gate"],
+        "description": "off: tools only. remind: inject remaining work. gate: also revise if the agent tries to stop early."
+      },
+      "maxReviseAttempts": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 3,
+        "description": "Max extra model passes when enforcement is gate. Default 2."
+      },
+      "storagePath": {
+        "type": "string",
+        "description": "Directory for session plans. Default ~/.openclaw/state/task-guard"
+      }
+    }
+  }
+}

@@ -1,0 +1,93 @@
+import { MAX_TODO_LINES, type PlanItem, type RunPlan } from "./types.js";
+
+export function isChatLocation(location: string): boolean {
+  return location.trim().toLowerCase() === "chat";
+}
+
+export function locationTag(location: string): string {
+  return isChatLocation(location) ? "CHAT" : `FILE=${location.trim()}`;
+}
+
+export function todoItems(plan: RunPlan): PlanItem[] {
+  return plan.items.filter((item) => item.status === "todo");
+}
+
+export function firstTodo(plan: RunPlan): PlanItem | undefined {
+  return todoItems(plan)[0];
+}
+
+function oneLine(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+export function renderTodoLines(items: PlanItem[], max = MAX_TODO_LINES): string[] {
+  const shown = items.slice(0, max);
+  const lines = shown.map((item, index) => {
+    return `${index + 1}. id=${item.id} ${locationTag(item.location)} | content: ${oneLine(item.content)} | format: ${oneLine(item.format)}`;
+  });
+  const extra = items.length - shown.length;
+  if (extra > 0) {
+    lines.push(`... +${extra} more`);
+  }
+  return lines;
+}
+
+export function renderNowLine(item: PlanItem): string {
+  return `NOW: finish ${item.id}, then call task_mark id=${item.id} status=done evidence=${isChatLocation(item.location) ? "<short proof>" : item.location}`;
+}
+
+export function renderTaskRule(): string {
+  return [
+    "TASK RULE",
+    "If the user asked for a concrete output (file, report, table, JSON, formatted reply):",
+    "1. Call task_plan now, before other work.",
+    "2. Each item needs content + format + location.",
+    "3. Last item = final output for the user.",
+    "If this is only a question, ignore this rule.",
+  ].join("\n");
+}
+
+export function renderPlanOpen(plan: RunPlan): string {
+  const todos = todoItems(plan);
+  const current = todos[0];
+  const lines = ["TASK OPEN. Do not stop.", "TODO:", ...renderTodoLines(todos)];
+  if (current) {
+    lines.push(renderNowLine(current));
+  }
+  return lines.join("\n");
+}
+
+export function renderStopEarly(plan: RunPlan): string {
+  return ["STOP. You tried to finish too early.", renderPlanOpen(plan)].join("\n");
+}
+
+export function renderPlanReady(plan: RunPlan): string {
+  const todos = todoItems(plan);
+  const current = todos[0];
+  const lines = ["PLAN READY", "TODO:", ...renderTodoLines(todos)];
+  if (current) {
+    lines.push(
+      `NEXT: do ${current.id}, then call task_mark id=${current.id} status=done evidence=${isChatLocation(current.location) ? "<short proof>" : current.location}`,
+    );
+  }
+  return lines.join("\n");
+}
+
+export function renderPlanDone(): string {
+  return ["PLAN DONE", "All items marked. You may stop."].join("\n");
+}
+
+export function renderError(message: string, next?: string): string {
+  const lines = [`ERROR. ${oneLine(message)}`];
+  if (next) {
+    lines.push(next);
+  }
+  return lines.join("\n");
+}
+
+export function renderMarkSuccess(plan: RunPlan): string {
+  if (plan.status === "done" || todoItems(plan).length === 0) {
+    return renderPlanDone();
+  }
+  return renderPlanOpen(plan);
+}

@@ -50,7 +50,7 @@ export async function markItem(
         plan,
       };
     }
-    const check = await checkDeliverable(item.location, evidence);
+    const check = await checkDeliverable(item, evidence);
     if (!check.ok) {
       return {
         text: renderError(check.message, renderNowLine(item)),

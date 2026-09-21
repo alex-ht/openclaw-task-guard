@@ -18,6 +18,7 @@ const plan: RunPlan = {
       content: "change summary",
       format: "markdown ## Summary ## Files",
       location: "docs/change.md",
+      kind: "file",
       status: "todo",
     },
     {
@@ -26,6 +27,7 @@ const plan: RunPlan = {
       content: "user summary",
       format: "3 bullets",
       location: "chat",
+      kind: "chat",
       status: "todo",
     },
   ],
@@ -36,6 +38,7 @@ describe("render", () => {
     const text = renderTaskRule();
     expect(text).toContain("TASK RULE");
     expect(text).toContain("Call task_plan now");
+    expect(text).toContain("kind=file");
     expect(text.split("\n").length).toBeLessThanOrEqual(12);
   });
 
@@ -69,6 +72,7 @@ describe("render", () => {
         content: `c${i + 1}`,
         format: "txt",
         location: "chat",
+        kind: "chat" as const,
         status: "todo" as const,
       })),
     };

@@ -2,11 +2,14 @@ export type ItemStatus = "todo" | "done" | "cancel";
 
 export type PlanStatus = "active" | "done" | "cancel";
 
+export type ItemKind = "file" | "chat";
+
 export type PlanItemInput = {
   title: string;
   content: string;
   format: string;
   location: string;
+  kind: ItemKind;
 };
 
 export type PlanItem = PlanItemInput & {
@@ -14,6 +17,21 @@ export type PlanItem = PlanItemInput & {
   status: ItemStatus;
   evidence?: string;
 };
+
+export function inferItemKind(location: string): ItemKind {
+  return location.trim().toLowerCase() === "chat" ? "chat" : "file";
+}
+
+export function itemKindOf(item: { kind?: ItemKind; location: string }): ItemKind {
+  if (item.kind === "file" || item.kind === "chat") {
+    return item.kind;
+  }
+  return inferItemKind(item.location);
+}
+
+export function isChatItem(item: { kind?: ItemKind; location: string }): boolean {
+  return itemKindOf(item) === "chat";
+}
 
 export type RunPlan = {
   planId: string;

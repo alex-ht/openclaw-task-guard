@@ -11,10 +11,34 @@ describe("createPlan", () => {
 
   it("rejects a missing field", () => {
     const result = createPlan([
-      { title: "a", content: "", format: "md", location: "chat" },
+      { title: "a", content: "", format: "md", location: "chat", kind: "chat" },
     ]);
     expect(result.plan).toBeUndefined();
-    expect(result.text).toContain("needs title, content, format, and location");
+    expect(result.text).toContain("needs title, content, format, location, and kind");
+  });
+
+  it("rejects missing kind", () => {
+    const result = createPlan([
+      { title: "a", content: "c", format: "md", location: "chat" } as never,
+    ]);
+    expect(result.plan).toBeUndefined();
+    expect(result.text).toContain("kind (file or chat)");
+  });
+
+  it("rejects kind=file with a chat location", () => {
+    const result = createPlan([
+      { title: "a", content: "c", format: "md", location: "chat", kind: "file" },
+    ]);
+    expect(result.plan).toBeUndefined();
+    expect(result.text).toContain("kind=file requires location to be a file path");
+  });
+
+  it("rejects kind=chat with a file path", () => {
+    const result = createPlan([
+      { title: "a", content: "c", format: "md", location: "out.md", kind: "chat" },
+    ]);
+    expect(result.plan).toBeUndefined();
+    expect(result.text).toContain('kind=chat requires location="chat"');
   });
 
   it("assigns item-N ids and returns PLAN READY", () => {
@@ -24,12 +48,14 @@ describe("createPlan", () => {
         content: "report",
         format: "markdown",
         location: "out.md",
+        kind: "file",
       },
       {
         title: "say",
         content: "done",
         format: "1 sentence",
         location: "chat",
+        kind: "chat",
       },
     ]);
     expect(result.plan?.items.map((item) => item.id)).toEqual(["item-1", "item-2"]);

@@ -19,7 +19,11 @@ const itemSchema = Type.Object({
   title: Type.String({ description: "Short name for this output." }),
   content: Type.String({ description: "What to produce." }),
   format: Type.String({ description: "How to deliver it (markdown headings, JSON, file type)." }),
-  location: Type.String({ description: 'File path or "chat".' }),
+  location: Type.String({ description: 'Output file path, or "chat" when kind=chat.' }),
+  kind: Type.Union([Type.Literal("file"), Type.Literal("chat")], {
+    description:
+      'file: write a real file at location; task_mark done fails unless that file exists and is non-empty. chat: reply in the conversation.',
+  }),
 });
 
 export default definePluginEntry({
@@ -33,7 +37,7 @@ export default definePluginEntry({
     api.registerTool((toolContext: Record<string, unknown>) => ({
       name: "task_plan",
       description:
-        "Call FIRST when the user wants a concrete output (file, report, table, JSON, formatted reply). Do NOT call for a plain question. Each item needs title, content (what), format (how), location (path or chat). Last item MUST be the final user-facing output. Replaces any current plan.",
+        "Call FIRST when the user wants a concrete output (file, report, table, JSON, formatted reply). Do NOT call for a plain question. Each item needs title, content (what), format (how), location (path or chat), kind (file or chat). kind=file means the file at location must exist before task_mark done. Last item MUST be the final user-facing output. Replaces any current plan.",
       parameters: Type.Object({
         items: Type.Array(itemSchema, { minItems: 1 }),
       }),
@@ -55,7 +59,7 @@ export default definePluginEntry({
     api.registerTool((toolContext: Record<string, unknown>) => ({
       name: "task_mark",
       description:
-        "Mark one plan item done or cancel. Call as soon as that item's output exists. status=done requires evidence (file path or short proof).",
+        "Mark one plan item done or cancel. Call as soon as that item's output exists. status=done requires evidence. kind=file: evidence is the planned path; the file must exist, be non-empty, and .json must parse. kind=chat: short proof string.",
       parameters: Type.Object({
         id: Type.String({ description: "Plan item id, for example item-1." }),
         status: Type.Union([Type.Literal("done"), Type.Literal("cancel")]),

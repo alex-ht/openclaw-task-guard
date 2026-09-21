@@ -52,6 +52,13 @@ Two tools. No skill file. Small models get the next action from tool results and
 
 `task_plan` replaces the current session plan and assigns ids `item-1`, `item-2`, ...
 
+Each item must set `kind`:
+
+| `kind` | `location` | `task_mark` `done` |
+| --- | --- | --- |
+| `file` | Output file path | File must exist, be non-empty, and `.json` must parse. Evidence must be that path (or a short proof); a different existing file is rejected. |
+| `chat` | `"chat"` | Non-empty proof string. |
+
 ## Hook text (English, copyable)
 
 No plan yet:
@@ -60,8 +67,9 @@ No plan yet:
 TASK RULE
 If the user asked for a concrete output (file, report, table, JSON, formatted reply):
 1. Call task_plan now, before other work.
-2. Each item needs content + format + location.
-3. Last item = final output for the user.
+2. Each item needs content + format + location + kind (file or chat).
+3. kind=file: location is the output path. task_mark done checks that file exists.
+4. Last item = final output for the user.
 If this is only a question, ignore this rule.
 ```
 
@@ -89,7 +97,7 @@ Heartbeat and `internal_system` turns get no injection.
 ## Runtime notes
 
 - `before_agent_finalize` is wired on the embedded runner and native hook relay. Copilot does not dispatch it. If finalize never fires, `agent_end` queues the same TASK OPEN text for the next turn.
-- File locations must exist and be non-empty before `task_mark` accepts `done`. `.json` files must parse.
+- `kind=file` items cannot be marked `done` unless the file at `location` exists and is non-empty. `.json` files must parse. Evidence cannot point at a different path.
 - Not a replacement for ClawHub `tasks` (calendar-style todos).
 
 ## Publish

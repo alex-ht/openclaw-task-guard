@@ -1,13 +1,13 @@
 import { access, readFile, stat } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
-import { isChatLocation } from "./render.js";
+import { isChatItem, type ItemKind } from "./types.js";
 
 export type FormatCheckResult =
   | { ok: true }
   | { ok: false; message: string };
 
-function looksLikePath(value: string): boolean {
+export function looksLikePath(value: string): boolean {
   const trimmed = value.trim();
   if (!trimmed || trimmed.includes("://")) {
     return false;
@@ -21,18 +21,30 @@ function looksLikePath(value: string): boolean {
   );
 }
 
+function sameFile(a: string, b: string): boolean {
+  return path.resolve(a.trim()) === path.resolve(b.trim());
+}
+
 export async function checkDeliverable(
-  location: string,
+  item: { kind?: ItemKind; location: string },
   evidence: string,
 ): Promise<FormatCheckResult> {
-  if (isChatLocation(location)) {
+  if (isChatItem(item)) {
     if (!evidence.trim()) {
       return { ok: false, message: "Chat output needs a short proof in evidence." };
     }
     return { ok: true };
   }
 
-  const filePath = looksLikePath(evidence) ? evidence.trim() : location.trim();
+  const filePath = item.location.trim();
+  const proof = evidence.trim();
+  if (looksLikePath(proof) && !sameFile(proof, filePath)) {
+    return {
+      ok: false,
+      message: `evidence must be the planned file: ${filePath}`,
+    };
+  }
+
   try {
     await access(filePath, constants.R_OK);
   } catch {

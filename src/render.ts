@@ -1,11 +1,7 @@
-import { MAX_TODO_LINES, type PlanItem, type RunPlan } from "./types.js";
+import { isChatItem, MAX_TODO_LINES, type PlanItem, type RunPlan } from "./types.js";
 
-export function isChatLocation(location: string): boolean {
-  return location.trim().toLowerCase() === "chat";
-}
-
-export function locationTag(location: string): string {
-  return isChatLocation(location) ? "CHAT" : `FILE=${location.trim()}`;
+export function locationTag(item: PlanItem): string {
+  return isChatItem(item) ? "CHAT" : `FILE=${item.location.trim()}`;
 }
 
 export function todoItems(plan: RunPlan): PlanItem[] {
@@ -23,7 +19,7 @@ function oneLine(value: string): string {
 export function renderTodoLines(items: PlanItem[], max = MAX_TODO_LINES): string[] {
   const shown = items.slice(0, max);
   const lines = shown.map((item, index) => {
-    return `${index + 1}. id=${item.id} ${locationTag(item.location)} | content: ${oneLine(item.content)} | format: ${oneLine(item.format)}`;
+    return `${index + 1}. id=${item.id} ${locationTag(item)} | content: ${oneLine(item.content)} | format: ${oneLine(item.format)}`;
   });
   const extra = items.length - shown.length;
   if (extra > 0) {
@@ -33,7 +29,7 @@ export function renderTodoLines(items: PlanItem[], max = MAX_TODO_LINES): string
 }
 
 export function renderNowLine(item: PlanItem): string {
-  return `NOW: finish ${item.id}, then call task_mark id=${item.id} status=done evidence=${isChatLocation(item.location) ? "<short proof>" : item.location}`;
+  return `NOW: finish ${item.id}, then call task_mark id=${item.id} status=done evidence=${isChatItem(item) ? "<short proof>" : item.location}`;
 }
 
 export function renderTaskRule(): string {
@@ -41,8 +37,9 @@ export function renderTaskRule(): string {
     "TASK RULE",
     "If the user asked for a concrete output (file, report, table, JSON, formatted reply):",
     "1. Call task_plan now, before other work.",
-    "2. Each item needs content + format + location.",
-    "3. Last item = final output for the user.",
+    "2. Each item needs content + format + location + kind (file or chat).",
+    "3. kind=file: location is the output path. task_mark done checks that file exists.",
+    "4. Last item = final output for the user.",
     "If this is only a question, ignore this rule.",
   ].join("\n");
 }
@@ -67,7 +64,7 @@ export function renderPlanReady(plan: RunPlan): string {
   const lines = ["PLAN READY", "TODO:", ...renderTodoLines(todos)];
   if (current) {
     lines.push(
-      `NEXT: do ${current.id}, then call task_mark id=${current.id} status=done evidence=${isChatLocation(current.location) ? "<short proof>" : current.location}`,
+      `NEXT: do ${current.id}, then call task_mark id=${current.id} status=done evidence=${isChatItem(current) ? "<short proof>" : current.location}`,
     );
   }
   return lines.join("\n");

@@ -12,6 +12,7 @@ const openPlan: RunPlan = {
       content: "report",
       format: "md",
       location: "out.md",
+      kind: "file",
       status: "todo",
     },
   ],

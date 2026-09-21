@@ -32,7 +32,8 @@ Keep hook copy and tool results on the **same** `render.ts` templates. Small mod
 - **Two tools:** `task_plan`, `task_mark`. Do not add `status` / `update` tools. Remaining work is injected.
 - **Short English injection.** Numbered lines, copyable `task_mark id=item-N ...`. `NOW` points at the first todo only. Cap TODO lines at `MAX_TODO_LINES` (8).
 - **Ids are assigned by the plugin** (`item-1`, `item-2`). Calling `task_plan` replaces the session plan.
-- **`done` needs evidence.** Chat: non-empty proof string. File path: exists, non-empty; `.json` must parse.
+- **`done` needs evidence.** `kind=chat`: non-empty proof string. `kind=file`: the file at `location` must exist and be non-empty; `.json` must parse. Evidence cannot point at a different path.
+- **`kind` is required** on `task_plan` items (`file` or `chat`). `kind` and `location` must agree (`file` → real path, `chat` → `"chat"`). Old session JSON without `kind` infers it from `location` on load.
 - Manifest `contracts.tools` must stay in sync with `api.registerTool`.
 - Published `package.json` `openclaw.extensions` must point at `./dist/index.js`. Do not ship TypeScript as the runtime entry.
 

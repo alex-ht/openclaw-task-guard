@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import path from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import type { PluginConfig, RunPlan } from "./types.js";
+import { inferItemKind, type PlanItem, type PluginConfig, type RunPlan } from "./types.js";
 
 export function expandHome(input: string): string {
   if (input === "~") {
@@ -40,7 +40,13 @@ export async function loadPlan(
     if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.items)) {
       return null;
     }
-    return parsed;
+    return {
+      ...parsed,
+      items: parsed.items.map((item: PlanItem) => ({
+        ...item,
+        kind: item.kind === "file" || item.kind === "chat" ? item.kind : inferItemKind(item.location),
+      })),
+    };
   } catch {
     return null;
   }

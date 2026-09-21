@@ -19,7 +19,7 @@ Local development:
 npm install
 npm test
 npm run build
-openclaw plugins install --link . --force
+openclaw plugins install --link .
 openclaw plugins enable task-guard
 ```
 

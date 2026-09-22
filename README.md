@@ -84,7 +84,14 @@ NOW: finish item-1, then call task_mark id=item-1 status=done evidence=docs/chan
 
 Early stop (`enforcement=gate`) prepends `STOP. You tried to finish too early.` and asks the harness for one more pass.
 
-Heartbeat and `internal_system` turns get no injection.
+While the plan is open, the same `TASK OPEN` block stays in system context for the whole turn. Every other tool result also gains a two-line progress reminder:
+
+```
+TASK OPEN. 0 done, 1 open. Do not stop.
+NOW: finish item-1, then call task_mark id=item-1 status=done evidence=docs/change.md
+```
+
+`task_plan` and `task_mark` already return that status, so their results are left unchanged. Heartbeat and `internal_system` turns get no prompt injection.
 
 ## Config
 

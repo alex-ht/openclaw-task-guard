@@ -5,6 +5,7 @@ import {
   renderPlanReady,
   renderStopEarly,
   renderTaskRule,
+  renderToolProgress,
 } from "../src/render.js";
 import type { RunPlan } from "../src/types.js";
 
@@ -47,6 +48,17 @@ describe("render", () => {
     expect(text).toMatch(/^PLAN READY/);
     expect(text).toContain("id=item-1 FILE=docs/change.md");
     expect(text).toContain("NEXT: do item-1, then call task_mark id=item-1 status=done evidence=docs/change.md");
+  });
+
+  it("renders a two-line progress reminder with done and open counts", () => {
+    const text = renderToolProgress(plan);
+    expect(text).toBe(
+      [
+        "TASK OPEN. 0 done, 2 open. Do not stop.",
+        "NOW: finish item-1, then call task_mark id=item-1 status=done evidence=docs/change.md",
+      ].join("\n"),
+    );
+    expect(text!.split("\n").length).toBeLessThanOrEqual(12);
   });
 
   it("points NOW at only the first todo", () => {

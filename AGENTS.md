@@ -15,7 +15,7 @@ src/plan.ts           task_plan logic
 src/mark.ts           task_mark logic
 src/format-check.ts   File exists / non-empty / JSON parse
 src/store.ts          ~/.openclaw/state/task-guard/<agent>/<sessionHash>.json
-src/hooks-logic.ts    prompt injection + finalize revise decision
+src/hooks-logic.ts    prompt injection, tool-result progress, finalize revise decision
 src/session.ts        sessionKey/agentId + next-turn injection
 src/config.ts         enforcement / maxReviseAttempts / storagePath
 src/types.ts          PlanItem / RunPlan
@@ -79,7 +79,8 @@ Inspect: `openclaw plugins inspect task-guard --runtime --json`
 | Surface | Behavior |
 | --- | --- |
 | No plan, user turn | Inject `TASK RULE` (call `task_plan` if there is a concrete output) |
-| Open plan | Inject `TASK OPEN` + first-item `NOW` |
+| Open plan | Inject `TASK OPEN` + first-item `NOW` on the prompt and again in system context for the whole turn |
+| Open plan, later tool result | Prepend `TASK OPEN. N done, M open` + `NOW` (`task_plan` / `task_mark` results stay as they are) |
 | `enforcement=gate` + todos | `before_agent_finalize` → `{ action: "revise", retry: { instruction, idempotencyKey, maxAttempts } }` |
 | `remind` | Inject only, no revise |
 | `off` | Tools work, hooks silent |

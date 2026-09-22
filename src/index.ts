@@ -1,7 +1,14 @@
 import { Type } from "typebox";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { parsePluginConfig } from "./config.js";
-import { finalizeDecision, promptInjection } from "./hooks-logic.js";
+import {
+  agentIdOf,
+  applyToolProgress,
+  finalizeDecision,
+  promptInjection,
+  promptSystemContext,
+  sessionKeyOf,
+} from "./hooks-logic.js";
 import { markItem } from "./mark.js";
 import { createPlan } from "./plan.js";
 import { renderPlanOpen } from "./render.js";
@@ -11,7 +18,7 @@ import {
   resolveSession,
   saveSessionPlan,
 } from "./session.js";
-import { isActivePlan } from "./store.js";
+import { isActivePlan, loadPlanSync } from "./store.js";
 import { textResult } from "./tool-result.js";
 import type { ItemStatus, PlanItemInput } from "./types.js";
 
@@ -96,10 +103,25 @@ export default definePluginEntry({
       const session = resolveSession(event, ctx);
       const plan = await loadSessionPlan(config, session);
       const text = promptInjection(plan, config, session);
-      if (!text) {
+      const system = promptSystemContext(plan, config, session);
+      if (!text && !system) {
         return;
       }
-      return { prependContext: text };
+      return {
+        ...(text ? { prependContext: text } : {}),
+        ...(system ? { appendSystemContext: system } : {}),
+      };
+    });
+
+    api.on("tool_result_persist", (event, ctx) => {
+      const session = resolveSession(event, ctx);
+      const plan = loadPlanSync(config, agentIdOf(session), sessionKeyOf(session));
+      const toolName = typeof event.toolName === "string" ? event.toolName : undefined;
+      const message = applyToolProgress(event.message, plan, config, toolName);
+      if (!message) {
+        return;
+      }
+      return { message };
     });
 
     api.on("before_agent_finalize", async (event, ctx) => {

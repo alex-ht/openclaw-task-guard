@@ -44,6 +44,19 @@ export function renderTaskRule(): string {
   ].join("\n");
 }
 
+export function renderToolProgress(plan: RunPlan): string | null {
+  const todos = todoItems(plan);
+  const current = todos[0];
+  if (!current) {
+    return null;
+  }
+  const done = plan.items.filter((item) => item.status === "done").length;
+  return [
+    `TASK OPEN. ${done} done, ${todos.length} open. Do not stop.`,
+    renderNowLine(current),
+  ].join("\n");
+}
+
 export function renderPlanOpen(plan: RunPlan): string {
   const todos = todoItems(plan);
   const current = todos[0];

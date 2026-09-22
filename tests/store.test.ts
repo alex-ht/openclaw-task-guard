@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "../src/types.js";
-import { loadPlan, planFilePath, savePlan } from "../src/store.js";
+import { loadPlan, loadPlanSync, planFilePath, savePlan } from "../src/store.js";
 import { createPlan } from "../src/plan.js";
 
 describe("store", () => {
@@ -36,5 +36,6 @@ describe("store", () => {
     await writeFile(file, `${JSON.stringify(legacy, null, 2)}\n`, "utf8");
     const loaded = await loadPlan(config, "main", "sess-old");
     expect(loaded?.items[0].kind).toBe("file");
+    expect(loadPlanSync(config, "main", "sess-old")?.items[0].kind).toBe("file");
   });
 });

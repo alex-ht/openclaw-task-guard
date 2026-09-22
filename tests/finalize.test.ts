@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { finalizeDecision, promptInjection } from "../src/hooks-logic.js";
+import { applyToolProgress, finalizeDecision, promptInjection, promptSystemContext } from "../src/hooks-logic.js";
 import { DEFAULT_CONFIG, type RunPlan } from "../src/types.js";
 
 const openPlan: RunPlan = {
@@ -34,6 +34,16 @@ describe("promptInjection", () => {
     const text = promptInjection(openPlan, DEFAULT_CONFIG, { trigger: "user" });
     expect(text).toContain("TASK OPEN");
     expect(text).toContain("task_mark id=item-1");
+  });
+
+  it("keeps the open plan in system context for the whole turn", () => {
+    const text = promptSystemContext(openPlan, DEFAULT_CONFIG, { trigger: "user" });
+    expect(text).toContain("TASK OPEN");
+    expect(text).toContain("task_mark id=item-1");
+    expect(promptSystemContext(null, DEFAULT_CONFIG, { trigger: "user" })).toBeNull();
+    expect(
+      promptSystemContext(openPlan, { ...DEFAULT_CONFIG, enforcement: "off" }, { trigger: "user" }),
+    ).toBeNull();
   });
 
   it("is silent when enforcement is off", () => {

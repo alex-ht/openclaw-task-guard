@@ -11,13 +11,13 @@ describe("store", () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "task-guard-"));
     const config = { ...DEFAULT_CONFIG, storagePath: dir };
     const created = createPlan([
-      { title: "a", content: "c", format: "md", location: "chat", kind: "chat" },
+      { title: "a", content: "c", format: "md", location: "out.md", kind: "file" },
     ]);
     await savePlan(config, "main", "sess-1", created.plan!);
     const loaded = await loadPlan(config, "main", "sess-1");
     expect(loaded?.planId).toBe(created.plan?.planId);
     expect(loaded?.items[0].id).toBe("item-1");
-    expect(loaded?.items[0].kind).toBe("chat");
+    expect(loaded?.items[0].kind).toBe("file");
   });
 
   it("infers kind for plans saved before the field existed", async () => {

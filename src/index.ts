@@ -26,10 +26,10 @@ const itemSchema = Type.Object({
   title: Type.String({ description: "Short name for this output." }),
   content: Type.String({ description: "What to produce." }),
   format: Type.String({ description: "How to deliver it (markdown headings, JSON, file type)." }),
-  location: Type.String({ description: 'Output file path, or "chat" when kind=chat.' }),
-  kind: Type.Union([Type.Literal("file"), Type.Literal("chat")], {
+  location: Type.String({ description: "Output file path. Not chat." }),
+  kind: Type.Literal("file", {
     description:
-      'file: write a real file at location; task_mark done fails unless that file exists and is non-empty. chat: reply in the conversation.',
+      "file only. Write that file before task_mark done. Do not deliver the item as a chat reply.",
   }),
 });
 
@@ -44,7 +44,7 @@ export default definePluginEntry({
     api.registerTool((toolContext: Record<string, unknown>) => ({
       name: "task_plan",
       description:
-        "Call FIRST when the user wants a concrete output (file, report, table, JSON, formatted reply). Do NOT call for a plain question. Each item needs title, content (what), format (how), location (path or chat), kind (file or chat). kind=file means the file at location must exist before task_mark done. Last item MUST be the final user-facing output. Replaces any current plan.",
+        "Call FIRST when the user wants a concrete output (file, report, table, JSON). Do NOT call for a plain question. Each item needs title, content (what), format (how), location (file path), kind=file. The file at location must exist before task_mark done. Do not deliver an item in chat. Last item MUST be the final output file. Replaces any current plan.",
       parameters: Type.Object({
         items: Type.Array(itemSchema, { minItems: 1 }),
       }),
@@ -66,7 +66,7 @@ export default definePluginEntry({
     api.registerTool((toolContext: Record<string, unknown>) => ({
       name: "task_mark",
       description:
-        "Mark one plan item done or cancel. Call as soon as that item's output exists. status=done requires evidence. kind=file: evidence is the planned path; the file must exist, be non-empty, and .json must parse. kind=chat: short proof string.",
+        "Mark one plan item done or cancel. Call as soon as that file exists. status=done requires evidence: the planned path. The file must exist, be non-empty, and .json must parse. Do not write this call as chat text.",
       parameters: Type.Object({
         id: Type.String({ description: "Plan item id, for example item-1." }),
         status: Type.Union([Type.Literal("done"), Type.Literal("cancel")]),

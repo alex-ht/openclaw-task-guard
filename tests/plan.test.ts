@@ -22,7 +22,7 @@ describe("createPlan", () => {
       { title: "a", content: "c", format: "md", location: "chat" } as never,
     ]);
     expect(result.plan).toBeUndefined();
-    expect(result.text).toContain("kind (file or chat)");
+    expect(result.text).toContain("kind=file");
   });
 
   it("rejects kind=file with a chat location", () => {
@@ -33,12 +33,13 @@ describe("createPlan", () => {
     expect(result.text).toContain("kind=file requires location to be a file path");
   });
 
-  it("rejects kind=chat with a file path", () => {
+  it("rejects kind=chat", () => {
     const result = createPlan([
       { title: "a", content: "c", format: "md", location: "out.md", kind: "chat" },
     ]);
     expect(result.plan).toBeUndefined();
-    expect(result.text).toContain('kind=chat requires location="chat"');
+    expect(result.text).toContain("kind must be file");
+    expect(result.text).toContain("Do not deliver in chat");
   });
 
   it("assigns item-N ids and returns PLAN READY", () => {
@@ -51,11 +52,11 @@ describe("createPlan", () => {
         kind: "file",
       },
       {
-        title: "say",
+        title: "summary file",
         content: "done",
-        format: "1 sentence",
-        location: "chat",
-        kind: "chat",
+        format: "markdown",
+        location: "summary.md",
+        kind: "file",
       },
     ]);
     expect(result.plan?.items.map((item) => item.id)).toEqual(["item-1", "item-2"]);

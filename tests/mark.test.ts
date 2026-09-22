@@ -4,6 +4,23 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { markItem } from "../src/mark.js";
 import { createPlan } from "../src/plan.js";
+import type { RunPlan } from "../src/types.js";
+
+function legacyChatPlan(items: Array<{ id: string; content: string }>): RunPlan {
+  return {
+    planId: "legacy",
+    status: "active",
+    items: items.map((item) => ({
+      id: item.id,
+      title: item.id,
+      content: item.content,
+      format: "md",
+      location: "chat",
+      kind: "chat",
+      status: "todo",
+    })),
+  };
+}
 
 async function tempDir(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "task-guard-"));
@@ -12,7 +29,7 @@ async function tempDir(): Promise<string> {
 describe("markItem", () => {
   it("rejects unknown ids", async () => {
     const created = createPlan([
-      { title: "a", content: "c", format: "md", location: "chat", kind: "chat" },
+      { title: "a", content: "c", format: "md", location: "out.md", kind: "file" },
     ]);
     const result = await markItem(created.plan!, { id: "nope", status: "done", evidence: "x" });
     expect(result.text).toContain("ERROR.");
@@ -22,7 +39,7 @@ describe("markItem", () => {
 
   it("requires evidence for done", async () => {
     const created = createPlan([
-      { title: "a", content: "c", format: "md", location: "chat", kind: "chat" },
+      { title: "a", content: "c", format: "md", location: "out.md", kind: "file" },
     ]);
     const result = await markItem(created.plan!, { id: "item-1", status: "done" });
     expect(result.text).toContain("requires evidence");
@@ -60,11 +77,8 @@ describe("markItem", () => {
     expect(result.text).toContain("Invalid JSON");
   });
 
-  it("marks a chat item done and reports PLAN DONE", async () => {
-    const created = createPlan([
-      { title: "a", content: "c", format: "md", location: "chat", kind: "chat" },
-    ]);
-    const result = await markItem(created.plan!, {
+  it("marks a stored chat item done and reports PLAN DONE", async () => {
+    const result = await markItem(legacyChatPlan([{ id: "item-1", content: "c" }]), {
       id: "item-1",
       status: "done",
       evidence: "replied with the summary",
@@ -75,8 +89,8 @@ describe("markItem", () => {
 
   it("keeps the plan open after cancelling one of two items", async () => {
     const created = createPlan([
-      { title: "a", content: "c1", format: "md", location: "chat", kind: "chat" },
-      { title: "b", content: "c2", format: "md", location: "chat", kind: "chat" },
+      { title: "a", content: "c1", format: "md", location: "a.md", kind: "file" },
+      { title: "b", content: "c2", format: "md", location: "b.md", kind: "file" },
     ]);
     const result = await markItem(created.plan!, { id: "item-1", status: "cancel" });
     expect(result.plan.status).toBe("active");

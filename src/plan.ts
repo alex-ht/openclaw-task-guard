@@ -31,20 +31,20 @@ export function createPlan(items: PlanItemInput[]): { text: string; plan?: RunPl
     if (!title || !content || !format || !location || !kind) {
       return {
         text: renderError(
-          `Item ${i + 1} needs title, content, format, location, and kind (file or chat).`,
+          `Item ${i + 1} needs title, content, format, location, and kind=file.`,
           "Fix items and call task_plan again.",
         ),
       };
     }
-    if (kind === "chat" && location.toLowerCase() !== "chat") {
+    if (kind === "chat") {
       return {
         text: renderError(
-          `Item ${i + 1}: kind=chat requires location="chat".`,
+          `Item ${i + 1}: kind must be file. location is the output path. Do not deliver in chat.`,
           "Fix items and call task_plan again.",
         ),
       };
     }
-    if (kind === "file" && (location.toLowerCase() === "chat" || !looksLikePath(location))) {
+    if (location.toLowerCase() === "chat" || !looksLikePath(location)) {
       return {
         text: renderError(
           `Item ${i + 1}: kind=file requires location to be a file path (not "chat").`,
@@ -57,7 +57,7 @@ export function createPlan(items: PlanItemInput[]): { text: string; plan?: RunPl
       title,
       content,
       format,
-      location: kind === "chat" ? "chat" : location,
+      location,
       kind,
       status: "todo",
     });

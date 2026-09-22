@@ -54,7 +54,7 @@ describe("render", () => {
     const text = renderToolProgress(plan);
     expect(text).toBe(
       [
-        "TASK OPEN. 0 done, 2 open. Do not stop.",
+        "TASK OPEN. 0 done, 2 open. No text until every item is marked, unless the task cannot be done.",
         "NOW: finish item-1, then call task_mark id=item-1 status=done evidence=docs/change.md",
       ].join("\n"),
     );
@@ -70,8 +70,10 @@ describe("render", () => {
 
   it("prefixes STOP when the agent tries to end early", () => {
     const text = renderStopEarly(plan);
-    expect(text.startsWith("STOP. You tried to finish too early.")).toBe(true);
-    expect(text).toContain("TASK OPEN. Do not stop.");
+    expect(text.startsWith("STOP. You sent text before the plan was done.")).toBe(true);
+    expect(text).toContain(
+      "TASK OPEN. No text until every item is marked, unless the task cannot be done.",
+    );
   });
 
   it("truncates long TODO lists", () => {
@@ -94,6 +96,6 @@ describe("render", () => {
   });
 
   it("renders PLAN DONE", () => {
-    expect(renderPlanDone()).toBe("PLAN DONE\nAll items marked. You may stop.");
+    expect(renderPlanDone()).toBe("PLAN DONE\nAll items marked. You may speak.");
   });
 });

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- While a plan is open, tell the model not to send text until every item is marked, unless the task cannot be done. `PLAN DONE` says it may speak.
+- New plans accept only `kind=file`. `kind=chat` is rejected so an item cannot be delivered as a chat reply.
+
 ## 1.2.0
 
 - While a plan is open, prepend a two-line progress reminder to every other tool result (`N done, M open` plus the current `task_mark` line). The embedded runner feeds that text back to the model on the next step.

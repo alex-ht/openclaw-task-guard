@@ -57,7 +57,7 @@ export function promptSystemContext(
   return renderPlanOpen(plan);
 }
 
-const PROGRESS_HEAD = /^TASK OPEN\. \d+ done, \d+ open\. Do not stop\.$/;
+const PROGRESS_HEAD = /^TASK OPEN\. \d+ done, \d+ open\. No text until every item is marked, unless the task cannot be done\.$/;
 
 function withoutProgressPrefix(text: string): string {
   const lines = text.split("\n");

@@ -57,7 +57,8 @@ Each item must set `kind`:
 | `kind` | `location` | `task_mark` `done` |
 | --- | --- | --- |
 | `file` | Output file path | File must exist, be non-empty, and `.json` must parse. Evidence must be that path (or a short proof); a different existing file is rejected. |
-| `chat` | `"chat"` | Non-empty proof string. |
+
+`kind=chat` is rejected. A new plan cannot deliver an item as a chat reply. A session file saved before this rule can still contain a chat item; `task_mark` for that item still needs a non-empty proof string.
 
 ## Hook text (English, copyable)
 
@@ -67,27 +68,27 @@ No plan yet:
 TASK RULE
 If the user asked for a concrete output (file, report, table, JSON, formatted reply):
 1. Call task_plan now, before other work.
-2. Each item needs content + format + location + kind (file or chat).
-3. kind=file: location is the output path. task_mark done checks that file exists.
-4. Last item = final output for the user.
+2. Each item needs content + format + location + kind=file.
+3. location is the output path. task_mark done checks that file exists.
+4. Last item = the final output file. Do not deliver in chat.
 If this is only a question, ignore this rule.
 ```
 
 Open plan:
 
 ```
-TASK OPEN. Do not stop.
+TASK OPEN. No text until every item is marked, unless the task cannot be done.
 TODO:
 1. id=item-1 FILE=docs/change.md | content: change summary | format: markdown ## Summary ## Files
 NOW: finish item-1, then call task_mark id=item-1 status=done evidence=docs/change.md
 ```
 
-Early stop (`enforcement=gate`) prepends `STOP. You tried to finish too early.` and asks the harness for one more pass.
+Early stop (`enforcement=gate`) prepends `STOP. You sent text before the plan was done.` and asks the harness for one more pass.
 
 While the plan is open, the same `TASK OPEN` block stays in system context for the whole turn. Every other tool result also gains a two-line progress reminder:
 
 ```
-TASK OPEN. 0 done, 1 open. Do not stop.
+TASK OPEN. 0 done, 1 open. No text until every item is marked, unless the task cannot be done.
 NOW: finish item-1, then call task_mark id=item-1 status=done evidence=docs/change.md
 ```
 

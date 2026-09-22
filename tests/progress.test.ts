@@ -29,7 +29,7 @@ const plan: RunPlan = {
 };
 
 const progress = [
-  "TASK OPEN. 1 done, 1 open. Do not stop.",
+  "TASK OPEN. 1 done, 1 open. No text until every item is marked, unless the task cannot be done.",
   "NOW: finish item-2, then call task_mark id=item-2 status=done evidence=<short proof>",
 ].join("\n");
 
@@ -49,7 +49,7 @@ describe("applyToolProgress", () => {
     const message = {
       role: "toolResult",
       content: [
-        { type: "text", text: "TASK OPEN. 0 done, 2 open. Do not stop.\nNOW: finish item-1, then call task_mark id=item-1 status=done evidence=out.md" },
+        { type: "text", text: "TASK OPEN. 0 done, 2 open. No text until every item is marked, unless the task cannot be done.\nNOW: finish item-1, then call task_mark id=item-1 status=done evidence=out.md" },
         { type: "text", text: "ok" },
       ],
     };

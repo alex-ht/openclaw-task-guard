@@ -58,7 +58,7 @@ describe("finalizeDecision", () => {
     const decision = finalizeDecision(openPlan, DEFAULT_CONFIG);
     expect(decision.action).toBe("revise");
     if (decision.action === "revise") {
-      expect(decision.instruction).toContain("STOP. You tried to finish too early.");
+      expect(decision.instruction).toContain("STOP. You sent text before the plan was done.");
       expect(decision.idempotencyKey).toBe("task-guard:abc:open");
       expect(decision.maxAttempts).toBe(2);
     }

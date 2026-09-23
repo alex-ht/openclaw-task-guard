@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import path from "node:path";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { inferItemKind, type PlanItem, type PluginConfig, type RunPlan } from "./types.js";
+import { inferItemKind, sourceCount, type PlanItem, type PluginConfig, type RunPlan } from "./types.js";
 
 export function expandHome(input: string): string {
   if (input === "~") {
@@ -37,10 +37,14 @@ function parsePlan(raw: string): RunPlan | null {
     }
     return {
       ...parsed,
-      items: parsed.items.map((item: PlanItem) => ({
-        ...item,
-        kind: item.kind === "file" || item.kind === "chat" ? item.kind : inferItemKind(item.location),
-      })),
+      items: parsed.items.map((item: PlanItem) => {
+        const sources = sourceCount(item);
+        return {
+          ...item,
+          kind: item.kind === "file" || item.kind === "chat" ? item.kind : inferItemKind(item.location),
+          ...(sources > 0 ? { sources } : { sources: undefined }),
+        };
+      }),
     };
   } catch {
     return null;
@@ -80,6 +84,17 @@ export async function savePlan(
   const file = planFilePath(config, agentId, sessionKey);
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
+}
+
+export function savePlanSync(
+  config: PluginConfig,
+  agentId: string,
+  sessionKey: string,
+  plan: RunPlan,
+): void {
+  const file = planFilePath(config, agentId, sessionKey);
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
 }
 
 export function isActivePlan(plan: RunPlan | null): plan is RunPlan {

@@ -10,6 +10,8 @@ export type PlanItemInput = {
   format: string;
   location: string;
   kind: ItemKind;
+  /** Pages this file must quote. Omit or 0 skips the citation check. */
+  sources?: number;
 };
 
 export type PlanItem = PlanItemInput & {
@@ -17,6 +19,11 @@ export type PlanItem = PlanItemInput & {
   status: ItemStatus;
   evidence?: string;
 };
+
+export function sourceCount(item: { sources?: number }): number {
+  const value = item.sources;
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : 0;
+}
 
 export function inferItemKind(location: string): ItemKind {
   return location.trim().toLowerCase() === "chat" ? "chat" : "file";

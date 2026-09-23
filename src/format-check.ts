@@ -1,11 +1,12 @@
 import { access, readFile, stat } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
-import { isChatItem, type ItemKind } from "./types.js";
+import { checkCitedSources, sourceBlocks, type PageExtract } from "./extracts.js";
+import { isChatItem, sourceCount, type ItemKind } from "./types.js";
 
 export type FormatCheckResult =
   | { ok: true }
-  | { ok: false; message: string };
+  | { ok: false; message: string; lines?: string[] };
 
 export function looksLikePath(value: string): boolean {
   const trimmed = value.trim();
@@ -26,8 +27,9 @@ function sameFile(a: string, b: string): boolean {
 }
 
 export async function checkDeliverable(
-  item: { kind?: ItemKind; location: string },
+  item: { kind?: ItemKind; location: string; sources?: number },
   evidence: string,
+  extracts: PageExtract[] = [],
 ): Promise<FormatCheckResult> {
   if (isChatItem(item)) {
     if (!evidence.trim()) {
@@ -62,13 +64,40 @@ export async function checkDeliverable(
     return { ok: false, message: `File is empty: ${filePath}` };
   }
 
-  if (path.extname(filePath).toLowerCase() === ".json") {
-    const raw = await readFile(filePath, "utf8");
+  const sources = sourceCount(item);
+  const isJson = path.extname(filePath).toLowerCase() === ".json";
+  if (!isJson && sources === 0) {
+    return { ok: true };
+  }
+
+  const raw = await readFile(filePath, "utf8");
+  if (isJson) {
     try {
       JSON.parse(raw);
     } catch {
       return { ok: false, message: `Invalid JSON: ${filePath}` };
     }
+  }
+  if (sources > 0) {
+    const cited = checkCitedSources(raw, sources, extracts);
+    if (cited.ok) {
+      return cited;
+    }
+    if (sourceBlocks(raw).length === 0 && sourceBlocks(proof).length > 0) {
+      return {
+        ok: false,
+        message: `Put the source lines in ${filePath}. evidence is only that path.`,
+        lines: cited.lines,
+      };
+    }
+    if (cited.lines && cited.lines.length > 0 && cited.message.includes("Found 0 blocks")) {
+      return {
+        ok: false,
+        message: `Need ${sources} sourced quotes in ${filePath}. Found 0 blocks. Append these lines, then call task_mark with evidence=${filePath}. Do not speak.`,
+        lines: cited.lines,
+      };
+    }
+    return cited;
   }
 
   return { ok: true };

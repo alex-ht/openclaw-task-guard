@@ -2,7 +2,7 @@
   "id": "task-guard",
   "name": "Task Guard",
   "description": "Session task list that keeps agents from stopping before deliverable content and format are done.",
-  "version": "1.2.0",
+  "version": "1.3.2",
   "categories": ["developer-tools"],
   "activation": {
     "onStartup": true

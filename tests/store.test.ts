@@ -36,6 +36,24 @@ describe("store", () => {
     await writeFile(file, `${JSON.stringify(legacy, null, 2)}\n`, "utf8");
     const loaded = await loadPlan(config, "main", "sess-old");
     expect(loaded?.items[0].kind).toBe("file");
+    expect(loaded?.items[0].sources).toBeUndefined();
     expect(loadPlanSync(config, "main", "sess-old")?.items[0].kind).toBe("file");
+  });
+
+  it("round-trips a sources count and drops a missing one", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "task-guard-"));
+    const config = { ...DEFAULT_CONFIG, storagePath: dir };
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: "report.md",
+        kind: "file",
+        sources: 2,
+      },
+    ]);
+    await savePlan(config, "main", "sess-src", created.plan!);
+    expect((await loadPlan(config, "main", "sess-src"))?.items[0].sources).toBe(2);
   });
 });

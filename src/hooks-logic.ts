@@ -1,3 +1,4 @@
+import type { PageExtract } from "./extracts.js";
 import { renderPlanOpen, renderStopEarly, renderTaskRule, renderToolProgress, todoItems } from "./render.js";
 import type { PluginConfig, RunPlan } from "./types.js";
 
@@ -30,6 +31,9 @@ export function promptInjection(
   plan: RunPlan | null,
   config: PluginConfig,
   ctx: HookContext,
+  opened = 0,
+  extracts: PageExtract[] = [],
+  candidates: string[] = [],
 ): string | null {
   if (config.enforcement === "off" || isInternalTurn(ctx)) {
     return null;
@@ -40,13 +44,16 @@ export function promptInjection(
   if (todoItems(plan).length === 0) {
     return null;
   }
-  return renderPlanOpen(plan);
+  return renderPlanOpen(plan, opened, extracts, candidates);
 }
 
 export function promptSystemContext(
   plan: RunPlan | null,
   config: PluginConfig,
   ctx: HookContext,
+  opened = 0,
+  extracts: PageExtract[] = [],
+  candidates: string[] = [],
 ): string | null {
   if (config.enforcement === "off" || isInternalTurn(ctx)) {
     return null;
@@ -54,10 +61,10 @@ export function promptSystemContext(
   if (!plan || plan.status !== "active" || todoItems(plan).length === 0) {
     return null;
   }
-  return renderPlanOpen(plan);
+  return renderPlanOpen(plan, opened, extracts, candidates);
 }
 
-const PROGRESS_HEAD = /^TASK OPEN\. \d+ done, \d+ open\. No text until every item is marked, unless the task cannot be done\.$/;
+const PROGRESS_HEAD = /^TASK OPEN\. \d+ done, \d+ open\.(?: Pages \d+\/\d+\.)? No text until every item is marked, unless the task cannot be done\.$/;
 
 function withoutProgressPrefix(text: string): string {
   const lines = text.split("\n");
@@ -65,7 +72,13 @@ function withoutProgressPrefix(text: string): string {
     return text;
   }
   lines.shift();
-  if ((lines[0] ?? "").startsWith("NOW: finish ")) {
+  if ((lines[0] ?? "").startsWith("NOW: ")) {
+    lines.shift();
+    while (lines.length > 0 && /^(https:\/\/|>)/.test((lines[0] ?? "").trim())) {
+      lines.shift();
+    }
+  }
+  if ((lines[0] ?? "").startsWith("task_mark id=")) {
     lines.shift();
   }
   return lines.join("\n").replace(/^\n/, "");
@@ -82,6 +95,10 @@ export function applyToolProgress(
   plan: RunPlan | null,
   config: PluginConfig,
   toolName: string | undefined,
+  opened = 0,
+  extracts: PageExtract[] = [],
+  manyUrls = 0,
+  candidates: string[] = [],
 ): Record<string, unknown> | undefined {
   if (config.enforcement === "off" || toolName === "task_plan" || toolName === "task_mark") {
     return undefined;
@@ -89,7 +106,7 @@ export function applyToolProgress(
   if (!plan || plan.status !== "active") {
     return undefined;
   }
-  const progress = renderToolProgress(plan);
+  const progress = renderToolProgress(plan, opened, toolName, extracts, manyUrls, candidates);
   if (!progress || !message || typeof message !== "object") {
     return undefined;
   }
@@ -129,6 +146,9 @@ export type FinalizeDecision =
 export function finalizeDecision(
   plan: RunPlan | null,
   config: PluginConfig,
+  opened = 0,
+  extracts: PageExtract[] = [],
+  candidates: string[] = [],
 ): FinalizeDecision {
   if (config.enforcement !== "gate") {
     return { action: "continue" };
@@ -139,7 +159,7 @@ export function finalizeDecision(
   return {
     action: "revise",
     reason: "required deliverables incomplete",
-    instruction: renderStopEarly(plan),
+    instruction: renderStopEarly(plan, opened, extracts, candidates),
     idempotencyKey: `task-guard:${plan.planId}:open`,
     maxAttempts: config.maxReviseAttempts,
   };

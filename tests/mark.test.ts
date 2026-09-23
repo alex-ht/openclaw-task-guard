@@ -2,9 +2,22 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { notePageExtract, emptyExtractLog, type PageExtract } from "../src/extracts.js";
 import { markItem } from "../src/mark.js";
 import { createPlan } from "../src/plan.js";
 import type { RunPlan } from "../src/types.js";
+
+const pageUrl = "https://docs.example.com/guide";
+const pageQuote =
+  "The specification requires every agent to open the full page before citing a sentence from it today.";
+
+function longPage(body: string): string {
+  return `${body} ${"paragraph ".repeat(200)}`;
+}
+
+function extractFor(url: string, body: string): PageExtract[] {
+  return notePageExtract("web_fetch", { url }, longPage(body), emptyExtractLog()).extracts;
+}
 
 function legacyChatPlan(items: Array<{ id: string; content: string }>): RunPlan {
   return {
@@ -161,6 +174,290 @@ describe("markItem", () => {
       evidence: "I wrote the file",
     });
     expect(result.text).toContain("File missing");
+    expect(result.plan.items[0].status).toBe("todo");
+  });
+
+  it("marks a researched file done when the quote is in the page extract", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    await writeFile(file, `${pageUrl}\n> ${pageQuote}\n`, "utf8");
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 1,
+      },
+    ]);
+    const result = await markItem(created.plan!, { id: "item-1", status: "done", evidence: file }, extractFor(pageUrl, pageQuote));
+    expect(result.plan.status).toBe("done");
+    expect(result.text).toMatch(/^PLAN DONE/);
+  });
+
+  it("rejects a quote when the session only has a search snippet", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    await writeFile(file, `${pageUrl}\n> ${pageQuote}\n`, "utf8");
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 1,
+      },
+    ]);
+    const result = await markItem(created.plan!, { id: "item-1", status: "done", evidence: file }, []);
+    expect(result.text).toContain(`${pageUrl} has no full-page extract`);
+    expect(result.plan.items[0].status).toBe("todo");
+  });
+
+  it("accepts a quote wrapped in quotation marks on a markdown-link line", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    const sentence =
+      "Diverging national rules may lead to the fragmentation of the internal market and may decrease legal certainty for operators that develop or use AI systems.";
+    await writeFile(
+      file,
+      `1. [Official text](${pageUrl})\n   > "${sentence}"\n`,
+      "utf8",
+    );
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 1,
+      },
+    ]);
+    const result = await markItem(
+      created.plan!,
+      { id: "item-1", status: "done", evidence: file },
+      extractFor(pageUrl, sentence),
+    );
+    expect(result.plan.status).toBe("done");
+  });
+
+  it("rejects a quoted sentence that adds words the page does not have", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    const sentence =
+      "Diverging national rules may lead to the fragmentation of the internal market and may decrease legal certainty for operators that develop or use AI systems.";
+    await writeFile(
+      file,
+      `${pageUrl}\n> "${sentence} unless explicitly authorised by this Regulation."\n`,
+      "utf8",
+    );
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 1,
+      },
+    ]);
+    const result = await markItem(
+      created.plan!,
+      { id: "item-1", status: "done", evidence: file },
+      extractFor(pageUrl, sentence),
+    );
+    expect(result.text).toContain("is not in the page text");
+    expect(result.plan.items[0].status).toBe("todo");
+  });
+
+  it("accepts a quote when the page wraps part of it in a markdown link", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    const sentence =
+      "If you are serious about securing your API keys from AI, using a dedicated secrets manager like AWS Secrets Manager is a better practice for runtime retrieval.";
+    await writeFile(file, `${pageUrl}\n> ${sentence}\n`, "utf8");
+    const page =
+      "Intro. If you are serious about securing your API keys from AI, using a dedicated secrets manager [like AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/) is a better practice for runtime retrieval. End.";
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 1,
+      },
+    ]);
+    const result = await markItem(
+      created.plan!,
+      { id: "item-1", status: "done", evidence: file },
+      extractFor(pageUrl, page),
+    );
+    expect(result.plan.status).toBe("done");
+  });
+
+  it("rejects a quote that is not in the page extract", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    await writeFile(file, `${pageUrl}\n> ${pageQuote}\n`, "utf8");
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 1,
+      },
+    ]);
+    const result = await markItem(
+      created.plan!,
+      { id: "item-1", status: "done", evidence: file },
+      extractFor(pageUrl, "A different article about unrelated deployment steps and configuration."),
+    );
+    expect(result.text).toContain(`Quote for ${pageUrl} is not in the page text`);
+    expect(result.plan.items[0].status).toBe("todo");
+  });
+
+  it("rejects a quote under 80 characters", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    await writeFile(file, `${pageUrl}\n> Too short to count as a page sentence.\n`, "utf8");
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 1,
+      },
+    ]);
+    const result = await markItem(
+      created.plan!,
+      { id: "item-1", status: "done", evidence: file },
+      extractFor(pageUrl, "Too short to count as a page sentence."),
+    );
+    expect(result.text).toContain("must be at least 60 characters");
+    expect(result.plan.items[0].status).toBe("todo");
+  });
+
+  it("upgrades sources after a search and still requires citations before done", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "stock_report.txt");
+    await writeFile(file, "AAPL 100\n", "utf8");
+    const created = createPlan([
+      { title: "a", content: "price", format: "text", location: file, kind: "file" },
+    ]);
+    const result = await markItem(
+      created.plan!,
+      { id: "item-1", status: "done", evidence: file },
+      [],
+      true,
+    );
+    expect(result.plan.items[0].sources).toBe(2);
+    expect(result.text).toMatch(/Need 2 sourced quotes|Found 0 blocks/);
+    expect(result.plan.items[0].status).toBe("todo");
+  });
+
+  it("rejects a researched file that has no two-line source blocks", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    await writeFile(file, `See [${pageUrl}](${pageUrl}) for details.\n`, "utf8");
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 2,
+      },
+    ]);
+    const result = await markItem(created.plan!, { id: "item-1", status: "done", evidence: file }, []);
+    expect(result.text).toContain("Found 0 blocks.");
+    expect(result.plan.items[0].status).toBe("todo");
+  });
+
+  it("appends copyable lines when the file has no source blocks", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    const sentence =
+      "The company reported that revenue grew during the quarter ending September 2026 and raised its full-year guidance.";
+    await writeFile(file, "A report without citations.\n", "utf8");
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 1,
+      },
+    ]);
+    const result = await markItem(
+      created.plan!,
+      { id: "item-1", status: "done", evidence: file },
+      extractFor(pageUrl, sentence),
+    );
+    expect(result.text).toContain(`Need 1 sourced quotes in ${file}. Found 0 blocks.`);
+    expect(result.text).toContain(pageUrl);
+    expect(result.text).toContain(`> ${sentence}`);
+    expect(result.text).not.toContain("NOW:");
+    expect(result.plan.items[0].status).toBe("todo");
+  });
+
+  it("tells the model to move source lines out of evidence into the file", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    await writeFile(file, "A report without citations.\n", "utf8");
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 1,
+      },
+    ]);
+    const result = await markItem(
+      created.plan!,
+      { id: "item-1", status: "done", evidence: `${pageUrl}\n> ${pageQuote}\n` },
+      extractFor(pageUrl, pageQuote),
+    );
+    expect(result.text).toContain(`Put the source lines in ${file}. evidence is only that path.`);
+    expect(result.plan.items[0].status).toBe("todo");
+  });
+
+  it("replaces a mismatched quote with a sentence from the page, skipping a name list", async () => {
+    const dir = await tempDir();
+    const file = path.join(dir, "report.md");
+    const sentence =
+      "The company reported that revenue grew during the quarter ending September 2026 and raised its full-year guidance.";
+    const names =
+      "Broadcom Inc., Dynatrace LLC, GitLab B.V., IBM Corporation and LogicMonitor Inc. supply observability tools to large enterprise teams.";
+    await writeFile(file, `${pageUrl}\n> ${pageQuote}\n`, "utf8");
+    const created = createPlan([
+      {
+        title: "research",
+        content: "cited report",
+        format: "markdown",
+        location: file,
+        kind: "file",
+        sources: 1,
+      },
+    ]);
+    const result = await markItem(
+      created.plan!,
+      { id: "item-1", status: "done", evidence: file },
+      extractFor(pageUrl, `${names} ${sentence}`),
+    );
+    expect(result.text).toContain("Quote for");
+    expect(result.text).toContain(`> ${sentence}`);
+    expect(result.text).not.toContain("Broadcom");
     expect(result.plan.items[0].status).toBe("todo");
   });
 });

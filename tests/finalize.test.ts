@@ -73,6 +73,20 @@ describe("finalizeDecision", () => {
     );
   });
 
+  it("includes the page count when the open item cites sources", () => {
+    const researched: RunPlan = {
+      ...openPlan,
+      items: [{ ...openPlan.items[0], sources: 2, location: "report.md" }],
+    };
+    const decision = finalizeDecision(researched, DEFAULT_CONFIG, 1);
+    expect(decision.action).toBe("revise");
+    if (decision.action === "revise") {
+      expect(decision.instruction).toContain("Pages 1/2.");
+      expect(decision.instruction).toContain("you have not opened yet");
+      expect(decision.instruction).not.toContain("https://example.com/article");
+    }
+  });
+
   it("continues when the plan is done", () => {
     expect(finalizeDecision({ ...openPlan, status: "done", items: [] }, DEFAULT_CONFIG).action).toBe(
       "continue",

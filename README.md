@@ -56,7 +56,7 @@ Each item must set `kind`:
 
 | `kind` | `location` | `task_mark` `done` |
 | --- | --- | --- |
-| `file` | Output file path | File must exist, be non-empty, and `.json` must parse. Evidence must be that path (or a short proof); a different existing file is rejected. |
+| `file` | Output file path | File must exist, be non-empty, and `.json` must parse. Evidence must be that path (or a short proof); a different existing file is rejected. Optional `sources` (a whole number, 0 to 2) requires that many opened pages quoted in the file. |
 
 `kind=chat` is rejected. A new plan cannot deliver an item as a chat reply. A session file saved before this rule can still contain a chat item; `task_mark` for that item still needs a non-empty proof string.
 
@@ -70,7 +70,8 @@ If the user asked for a concrete output (file, report, table, JSON, formatted re
 1. Call task_plan now, before other work.
 2. Each item needs content + format + location + kind=file.
 3. location is the output path. task_mark done checks that file exists.
-4. Last item = the final output file. Do not deliver in chat.
+4. Each location is a file the user named. The plan is this tool. Do not add a plan or notes file.
+5. For researched facts, set sources to 2. Open two https pages and quote one verbatim sentence from each.
 If this is only a question, ignore this rule.
 ```
 
@@ -106,6 +107,8 @@ NOW: finish item-1, then call task_mark id=item-1 status=done evidence=docs/chan
 
 - `before_agent_finalize` is wired on the embedded runner and native hook relay. Copilot does not dispatch it. If finalize never fires, `agent_end` queues the same TASK OPEN text for the next turn.
 - `kind=file` items cannot be marked `done` unless the file at `location` exists and is non-empty. `.json` files must parse. Evidence cannot point at a different path.
+- `sources` greater than 0 means the file contains that many source blocks. Each block is an `https` URL followed by a `>` quote of at least 60 characters. The quote must be verbatim text from a page opened this session. A qualifying open is a tool call with exactly one `https` URL in its parameters and a result of at least 1500 characters. A tool whose name is search does not qualify. Calling `task_plan` clears stored page text.
+- While that item is open, reminders show `Pages K/N`, including on the fetch result that opened the page. Below `N/N` they say to fetch one page and not to write the file yet. A call with several URLs says it opened no page. At `N/N` they give the exact URL and `>` lines to append, then say to call `task_mark`. `sources` is 0 to 2. If a search ran and `sources` is omitted or 0, that search result says to call `task_plan` with `sources` set to 2, and `task_mark` done is rejected until then. With `enforcement` set to `gate`, the same lines are a `before_tool_call` block: no write until the pages are open, no second search, no multi-URL fetch, and no further fetch once `Pages` is full. A quote wrapped in quotation marks still matches the page.
 - Not a replacement for ClawHub `tasks` (calendar-style todos).
 
 ## Publish
